@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0b0d14;
+  --foreground: #f3f4f8;
 }
 
 @theme inline {
@@ -12,15 +12,80 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: #0b0d14;
+  color: #f3f4f8;
+  overflow: hidden;
+  user-select: none;
+}
+
+input,
+textarea,
+[data-selectable="true"] {
+  user-select: text;
+}
+
+/* Subtle Telegram-inspired dark constellation wallpaper for DMs */
+.chat-wallpaper-dm {
+  background-color: #0e111b;
+  background-image:
+    radial-gradient(circle at 18% 20%, rgba(99, 102, 241, 0.11), transparent 38%),
+    radial-gradient(circle at 82% 16%, rgba(236, 72, 153, 0.08), transparent 36%),
+    radial-gradient(circle at 65% 84%, rgba(6, 182, 212, 0.08), transparent 40%),
+    radial-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 26px 26px;
+}
+
+/* Discord-inspired clean slate canvas for Server Channels */
+.chat-wallpaper-channel {
+  background-color: #131622;
+  background-image:
+    radial-gradient(circle at 80% 10%, rgba(99, 102, 241, 0.07), transparent 40%),
+    radial-gradient(circle at 15% 90%, rgba(168, 85, 247, 0.05), transparent 40%);
+}
+
+/* Custom ultra-thin scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.11);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.75;
+  }
+  70% {
+    transform: scale(1.25);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.25);
+    opacity: 0;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+.animate-speaking-ring {
+  animation: pulse-ring 1.6s cubic-bezier(0.24, 0, 0.38, 1) infinite;
 }

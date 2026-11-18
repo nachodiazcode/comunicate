@@ -1,0 +1,196 @@
+openapi: 3.1.0
+info:
+  title: Comunicate Hybrid Chat API
+  version: 1.0.0
+  description: >
+    Real-time hybrid messaging API combining Telegram/WhatsApp direct messaging
+    (add & message contacts by phone number or email) with Discord-style servers,
+    channels, voice lounges, and animated reactions.
+servers:
+  - url: http://localhost:3000
+paths:
+  /api/auth/me:
+    get:
+      summary: Get current authenticated user and available local/demo accounts
+      responses:
+        "200":
+          description: Current session and quick-switch accounts
+  /api/auth/register:
+    post:
+      summary: Register a user with name, email, and/or phone (claims invited contacts)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                email: { type: string, format: email }
+                phone: { type: string }
+                bio: { type: string }
+                avatarColor: { type: string }
+                avatarUrl: { type: string }
+      responses:
+        "200":
+          description: Registered session token and user profile
+  /api/auth/login:
+    post:
+      summary: Sign in using phone number, email, or userId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                identifier: { type: string }
+                userId: { type: string }
+      responses:
+        "200":
+          description: Session token and user profile
+  /api/auth/status:
+    patch:
+      summary: Update presence status and custom status text
+      responses:
+        "200":
+          description: Updated user profile
+  /api/bootstrap:
+    get:
+      summary: Load DMs, contacts, servers, channels, and active voice states
+      responses:
+        "200":
+          description: Complete workspace state
+  /api/contacts:
+    get:
+      summary: List saved contacts
+      responses:
+        "200":
+          description: Contact list
+    post:
+      summary: Add contact by phone number and/or email and open/create DM
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                alias: { type: string }
+                phone: { type: string }
+                email: { type: string, format: email }
+                avatarUrl: { type: string }
+                initialMessage: { type: string }
+      responses:
+        "200":
+          description: Created/updated contact, target user, and DM conversation
+  /api/contacts/lookup:
+    get:
+      summary: Live lookup of users by phone number, email, or name
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Matching registered users
+  /api/servers:
+    post:
+      summary: Create a new Discord-style server with default channels
+      responses:
+        "200":
+          description: Created server with channels
+  /api/servers/{serverId}/channels:
+    post:
+      summary: Create a text, announcement, or voice channel in a server
+      parameters:
+        - in: path
+          name: serverId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Created channel
+  /api/servers/{serverId}/voice:
+    post:
+      summary: Join, leave, or update mic state in a server voice lounge
+      parameters:
+        - in: path
+          name: serverId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Updated voice participants
+  /api/messages:
+    get:
+      summary: List messages for a DM conversation or server channel
+      parameters:
+        - in: query
+          name: targetType
+          required: true
+          schema: { type: string, enum: [dm, channel] }
+        - in: query
+          name: targetId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Ordered list of enriched messages
+    post:
+      summary: Send text, sticker, or voice message with optional reply reference
+      responses:
+        "200":
+          description: Created message
+  /api/messages/{messageId}:
+    patch:
+      summary: Edit message content
+      parameters:
+        - in: path
+          name: messageId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Updated message
+    delete:
+      summary: Delete message
+      parameters:
+        - in: path
+          name: messageId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Deletion confirmation
+  /api/messages/{messageId}/reactions:
+    post:
+      summary: Toggle emoji reaction on a message
+      parameters:
+        - in: path
+          name: messageId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Updated reactions array
+  /api/messages/read:
+    post:
+      summary: Mark DM conversation messages as read
+      responses:
+        "200":
+          description: Read receipt broadcast confirmation
+  /api/typing:
+    post:
+      summary: Broadcast real-time typing indicator
+      responses:
+        "200":
+          description: Typing state emitted
+  /api/events:
+    get:
+      summary: Server-Sent Events real-time stream
+      responses:
+        "200":
+          description: text/event-stream real-time updates
