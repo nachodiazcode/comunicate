@@ -25,6 +25,14 @@ npm run dev
 
 Abre http://localhost:3000 en dos pestañas distintas y usa el botón **Cuenta** (abajo a la izquierda) para elegir otro usuario o registrar tu propio número/correo y ver los mensajes, escritura y reacciones viajar en vivo.
 
+### Cuenta inicial de Nacho
+
+Configura `COMUNICATE_OWNER_INITIAL_PASSWORD` con una contraseña nueva y única en
+las variables privadas del servidor (o en `.env.local` para desarrollo).
+La aplicación la usa al inicializar la cuenta si aún no tiene contraseña.
+También reemplaza la credencial antigua incluida en el código y revoca su sesión.
+Las contraseñas configuradas posteriormente se conservan.
+
 ## Contrato API
 
 Consulta la especificación completa de endpoints en `openapi.yaml`.

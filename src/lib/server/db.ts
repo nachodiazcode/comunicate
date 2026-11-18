@@ -90,6 +90,7 @@ async function createAdapter(): Promise<DbAdapter> {
 
       await ensureSeedUsersAndFelipe(adapter);
       await purgeDemoPeople(adapter);
+      await initializeOwnerPassword(adapter);
       return adapter;
     } catch {
       // Fall back cleanly if NETLIFY_DB_URL is not provisioned in this runtime
@@ -138,6 +139,7 @@ async function createAdapter(): Promise<DbAdapter> {
   await seedIfEmpty(adapter);
   await ensureSeedUsersAndFelipe(adapter);
   await purgeDemoPeople(adapter);
+  await initializeOwnerPassword(adapter);
   return adapter;
 }
 
@@ -268,6 +270,10 @@ function initSqliteSchema(sqlite: {
 }
 
 const DEMO_PEOPLE = ["user_sofia", "user_mateo", "user_lucia", "user_nova"] as const;
+const OWNER_ID = "user_nacho";
+// SHA-256 fingerprint of the retired verifier, also used by the SQL migration.
+const LEGACY_OWNER_VERIFIER_FINGERPRINT =
+  "ad61bca307704672de33c841da3c9101b2251d54cc706704a7462d587b008074";
 
 function hashPassword(password: string): string {
   const salt = crypto.randomBytes(16).toString("hex");
@@ -282,6 +288,42 @@ function verifyPassword(password: string, stored: string): boolean {
   const expected = Buffer.from(hash, "hex");
   if (expected.length !== actual.length) return false;
   return crypto.timingSafeEqual(expected, actual);
+}
+
+async function initializeOwnerPassword(db: DbAdapter): Promise<void> {
+  const owner = await db.get<{ password_hash: string | null }>(
+    "SELECT password_hash FROM users WHERE id = ?",
+    [OWNER_ID]
+  );
+  if (!owner) return;
+
+  const current = owner.password_hash;
+  const replacement = process.env.COMUNICATE_OWNER_INITIAL_PASSWORD;
+  if (!current) {
+    if (replacement) {
+      await db.run(
+        "UPDATE users SET password_hash = ? WHERE id = ? AND password_hash IS NULL",
+        [hashPassword(replacement), OWNER_ID]
+      );
+    }
+    return;
+  }
+
+  if (
+    crypto.createHash("sha256").update(current).digest("hex") !==
+    LEGACY_OWNER_VERIFIER_FINGERPRINT
+  ) {
+    return;
+  }
+  await db.run(
+    "UPDATE users SET password_hash = ?, session_token = ? WHERE id = ? AND password_hash = ?",
+    [
+      replacement ? hashPassword(replacement) : null,
+      `revoked_${crypto.randomUUID()}`,
+      OWNER_ID,
+      current,
+    ]
+  );
 }
 
 async function purgeDemoPeople(db: DbAdapter): Promise<void> {
@@ -328,12 +370,6 @@ async function purgeDemoPeople(db: DbAdapter): Promise<void> {
   await db.run(`DELETE FROM users WHERE id IN (${people})`);
   await db.run(
     `UPDATE users SET session_token = 'tok_login_required_nacho' WHERE id = 'user_nacho' AND session_token = 'tok_nacho_default'`
-  );
-  await db.run(
-    `UPDATE users SET password_hash = ? WHERE id = 'user_nacho' AND password_hash IS NULL`,
-    [
-      "scrypt$a1b2c3d4e5f60718293a4b5c6d7e8f90$07b68d19111bcd20624f3151709d83fa5da11804b7976d5b9e1a09d140c0b747",
-    ]
   );
   await db.run(
     `UPDATE users
@@ -1023,7 +1059,7 @@ export async function getAvailableUsers(): Promise<User[]> {
 export async function getUserByToken(
   token?: string | null
 ): Promise<User | null> {
-  if (!token) return null;
+  if (!token || !/^tok_[a-f0-9]{32}$/.test(token)) return null;
   const db = await getAdapter();
   const row = await db.get<Record<string, unknown>>(
     "SELECT * FROM users WHERE session_token = ?",
@@ -1091,6 +1127,9 @@ export async function loginUser(params: {
 
   const stored = row.password_hash ? String(row.password_hash) : "";
   if (!stored) {
+    if (row.id === OWNER_ID) {
+      throw new Error("La contraseña de esta cuenta se configura en el servidor.");
+    }
     throw new Error(
       "Esta cuenta todavía no tiene contraseña. Créala en Crear cuenta con el mismo teléfono o correo."
     );
@@ -1171,6 +1210,9 @@ export async function registerOrClaimUser(params: {
   if (existingRow) {
     const userId = String(existingRow.id);
     const wasPlaceholder = Number(existingRow.is_placeholder) === 1;
+    if (userId === OWNER_ID && !existingRow.password_hash) {
+      throw new Error("La contraseña de esta cuenta se configura en el servidor.");
+    }
     if (existingRow.password_hash) {
       throw new Error("Esa cuenta ya existe. Entra con tu contraseña.");
     }
